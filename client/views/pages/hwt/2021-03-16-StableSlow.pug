@@ -1,0 +1,21 @@
+extends ../../_main
+block title
+	title Stable/Slow HWT config v9.9-pre-or-whatever
+block content
+	.col-4.col-tab-3 &nbsp;
+	.col-3.col-tab-6
+		include:markdown-it(html) md/2021-03-16-StableSlow.md
+	.col-4.col-tab-3 &nbsp;
+block append scripts
+	//- Links to any extra external or inline scripts/stylesheets.
+		Can use either block to replace all defaults (not recommended!)
+		Or can use append to add on to existing defaults (recommended).
+
+//- Checklist:
+	1. Properly extends _main?
+	2. Page has a Title?
+	3. Page has a manifest (if required)?
+	4. Page has content (leave blank for coming soon)?
+	5. Page has scripts/styles if needed?
+	6. Page has relevant Sass?
+	7. Page is working both mobile & desktop?
