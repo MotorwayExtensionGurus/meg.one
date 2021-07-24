@@ -1,12 +1,14 @@
 const path = require('path');
 const fs = require('fs-extra');
 const YAML = require('yaml');
-const pino = require('pino')({
-	prettyPrint: process.env.NODE_ENV === 'production' ? false : true
-});
+const TLog = require('@tycrek/log');
+const log = new TLog({ level: 'debug' })
+	.enable.express({ handle404: false, handle500: false }).debug('Plugin enabled', 'Express')
+	.enable.process().debug('Plugin enabled', 'Process')
+	.debug('Logger ready');
 
 module.exports = {
-	log: pino,
+	log,
 	CONFIG: {
 		port: 8236,
 		icon: joinPath('../client/static/favicon.ico'),
@@ -14,7 +16,8 @@ module.exports = {
 		uploads: joinPath('../client/uploads'),
 		images: joinPath('../client/images'),
 		fonts: joinPath('../client/static/fonts'),
-		views: joinPath('../client/views/pages')
+		views: joinPath('../client/views/pages'),
+		spammer: joinPath('../spammer')
 	},
 	sass: {
 		file: joinPath('../client/sass/main.scss'),
@@ -34,24 +37,21 @@ function joinPath(file) {
 
 function getData(page) {
 	return new Promise((resolve, reject) => {
-		let filepath = joinPath(page ? `../data/${page}.json` : '../data/main.json');
-
+		const filepath = joinPath(page ? `../data/${page}.json` : '../data/main.json');
 		fs.pathExists(filepath)
 			.then((exists) => exists ? fs.readJson(filepath) : yaml(page))
-			.then((json) => resolve(json))
-			.catch((err) => reject(err));
-
-
+			.then(resolve)
+			.catch(reject);
 	});
 
 	function yaml(page) {
 		return new Promise((resolve, reject) => {
-			let filepath = joinPath(page ? `../data/${page}.yaml` : '../data/main.yaml');
+			const filepath = joinPath(page ? `../data/${page}.yaml` : '../data/main.yaml');
 			fs.pathExists(filepath)
 				.then((exists) => exists ? fs.readFile(filepath) : resolve({}))
 				.then((yaml) => YAML.parse(yaml.toString()))
-				.then((json) => resolve(json))
-				.catch((err) => reject(err));
+				.then(resolve)
+				.catch(reject);
 		});
 	}
 }

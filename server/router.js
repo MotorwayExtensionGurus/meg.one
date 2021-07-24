@@ -14,20 +14,17 @@ module.exports = router;
 router.use(require('express-fileupload')());
 
 // Compile and compress Sass
-router.get('/css', (_req, res, next) => {
-	Sass.render(sass, (err, result) => {
-		err ? next(err) : res.type('css').send(result.css);
-	});
-});
+router.get('/css', (_req, res, next) =>
+	Sass.render(sass, (err, result) =>
+		err ? next(err) : res.type('css').send(result.css)));
 
 // Compress all JavaScript files using Uglify-ES
-router.get('*.js', (req, res, next) => {
+router.get('*.js', (req, res, next) =>
 	fs.readFile(path(`../client/javascript${req.url}`))
 		.then((bytes) => bytes.toString())
 		.then((javascript) => minify({ compressor: uglify, content: javascript }))
 		.then((minified) => res.type('js').send(minified))
-		.catch((err) => next(err));
-});
+		.catch(next));
 
 // All other routes
 router.get('*', (req, res, next) => {
@@ -66,21 +63,7 @@ router.get('*', (req, res, next) => {
 	}
 });
 
-/*
-router.post('/upload', (req, res, _next) => {
-	if (!req.files || Object.keys(req.files).length === 0) return res.status(400).send('No files were uploaded');
-
-	let file = req.files.file;
-	let savePath = path(`../client/uploads/${file.name}`);
-	fs.pathExists(savePath)
-		.then((exists) => { if (exists) throw Error('File with same name already exists.'); })
-		.then(() => file.mv(savePath))
-		.then(() => res.send(`Uploaded to: <a href="/files/${file.name}" download>https://meg.one/files/${file.name}</a>`))
-		.catch((err) => res.type('html').send(err.message));
-});
-*/
-
-router.get('/pack', (req, res, next) => {
+router.get('/pack', (req, res) => {
 	let assets = req.query.assets.split(',');
 
 	let zip = new AdmZip();
@@ -98,10 +81,7 @@ router.get('/pack', (req, res, next) => {
 		.then(() => TEMP_DOWNLOADS[did] = archivePath)
 		.then(() => res.type('json').send({ success: true, message: did }))
 		.then(() => fs.remove(path(`../downloads/${short}`)))
-		.catch((err) => {
-			log.error(err);
-			res.type('json').send({ success: false, message: err })
-		});
+		.catch((err) => log.error(err).callback(() => res.type('json').send({ success: false, message: err })));
 });
 
 function buildPack(assetsData, assets, short) {
@@ -156,25 +136,17 @@ function transferBulk(files, short) {
 	});
 }
 
-router.get('/download/:did', (req, res, _next) => {
+router.get('/download/:did', (req, res, _next) =>
 	res.download(TEMP_DOWNLOADS[req.params.did], (err) => {
 		err != null && log.warn(err);
 		if (res.headersSent) fs.remove(TEMP_DOWNLOADS[req.params.did]);
-	});
-});
+	}));
 
 // Redirects
-fs.readJsonSync(path('../data/redirects.json')).forEach((redirect) => {
-	router.get(`/${redirect.path}`, (_req, res, _next) => {
-		res.redirect(301, redirect.url);
-	});
-});
+fs.readJsonSync(path('../data/redirects.json')).forEach((redirect) => router.get(`/${redirect.path}`, (_req, res, _next) => res.redirect(301, redirect.url)));
 
 // HTTP 404
 router.use((_req, res) => res.status(404).send(http._404));
 
 // HTTP 500
-router.use((err, _req, res, _next) => {
-	log.error(err.stack);
-	res.status(500).send(http._500);
-});
+router.use((err, _req, res, _next) => log.error(err.stack).callback(() => res.status(500).send(http._500)));

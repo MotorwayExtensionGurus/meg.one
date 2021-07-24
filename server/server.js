@@ -10,14 +10,12 @@ app.enable('strict routing');
 app.enable('case sensitive routing');
 
 /*  Compress any eligible traffic;
-    security enhancements;
-    logging for Express functions;
-    modern Favicon serving */
+	security enhancements;
+	logging for Express functions;
+	modern Favicon serving */
 app.use(require('compression')());
-app.use(require('helmet')({
-	frameguard: false
-}));
-app.use(require('express-pino-logger')({ logger: log }));
+app.use(require('helmet')({ frameguard: false }));
+app.use(log.express(true));
 app.use(require('serve-favicon')(CONFIG.icon));
 
 // Static Express routes (for JavaScript, images, robots.txt, manifests, etc.)
@@ -25,6 +23,7 @@ app.use(express.static(CONFIG.static));
 app.use('/fonts', express.static(CONFIG.fonts));
 app.use('/images', express.static(CONFIG.images));
 app.use('/files', express.static(CONFIG.uploads));
+app.use('/spammer', express.static(CONFIG.spammer));
 
 // Route handler
 app.use(require('./router'));
@@ -39,20 +38,17 @@ cluster.isMaster ? masterThread() : workerThread();
 // Thread for master (only runs at launch, possibly after a crash or server reboot)
 function masterThread() {
 	// One thread per CPU
-	let cpus = require('os').cpus().length;
-	log.info(`Forking ${cpus} worker threads`);
+	const cpus = require('os').cpus().length;
+	log.info(log.chalk.bold(`Forking ${cpus} worker threads`));
 
 	// Create new threads for each CPU core
 	for (let cpu = 0; cpu < cpus; cpu++) cluster.fork();
 
-	cluster.on('online', (worker) => log.info(`Worker online [${worker.id}]`));
-	cluster.on('exit', (worker, code, signal) => {
-		log.warn(`Worker exited, reason: ${signal || code} [${worker.id}]`);
-		cluster.fork();
-	});
+	cluster.on('online', (worker) => log.info('Worker online', worker.id));
+	cluster.on('exit', (worker, code, signal) => log.warn('Worker exited', signal || code, `${worker.id}`).callback(cluster.fork));
 }
 
 // Thread for worker (spawned by master thread at launch or after another thread crashed)
 function workerThread() {
-	app.listen(CONFIG.port, () => log.info(`Server hosted (0.0.0.0:${CONFIG.port}) [${cluster.worker.id}]`));
+	log.comment(`Worker ID: ${cluster.worker.id}`).express().Host(app, CONFIG.port, '0.0.0.0');
 }
